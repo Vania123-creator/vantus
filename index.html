@@ -2,18 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Slow Flappy Bird</title>
+  <title>Slow Flappy with Images</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #70c5ce;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      background: #70c5ce;
-    }
+    body { margin:0; overflow:hidden; background:#70c5ce; }
+    canvas { display:block; margin:0 auto; background:#70c5ce; }
   </style>
 </head>
 <body>
@@ -22,163 +14,90 @@
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
 let frames = 0;
-const DEGREE = Math.PI / 180;
 
-// Game state
-const state = {
-  current: 0,
-  getReady: 0,
-  game: 1,
-  over: 2
-};
-
-// Control
-document.addEventListener("keydown", function(evt){
-  if(evt.code === "Space"){
-    switch(state.current){
-      case state.getReady:
-        state.current = state.game;
-        break;
-      case state.game:
-        bird.flap();
-        break;
-      case state.over:
-        location.reload();
-        break;
-    }
+const state = { getReady:0, game:1, over:2, current:0 };
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") {
+    if (state.current === state.getReady) state.current = state.game;
+    else if (state.current === state.game) bird.flap();
+    else if (state.current === state.over) location.reload();
   }
 });
 
-// Bird
+// Load images
+const birdImg = new Image();
+birdImg.src = 'https://i.imgur.com/Oj0T2s2.png'; // floppy bird placeholder
+
+const pipeNorth = new Image();
+pipeNorth.src = 'https://i.imgur.com/5a6g2UN.png';
+const pipeSouth = new Image();
+pipeSouth.src = 'https://i.imgur.com/bhV4SuH.png';
+
+// Bird object
 const bird = {
-  x: 50,
-  y: 150,
-  radius: 12,
-  gravity: 0.05,  // ⚠️ VERY LOW GRAVITY
-  jump: 1.5,      // ⚠️ VERY SLOW FLAP UP
-  speed: 0,
-  draw(){
-    ctx.fillStyle = "yellow";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-    ctx.fill();
-  },
-  update(){
-    if(state.current === state.game){
+  x:50, y:150, w:34, h:24,
+  gravity:0.05, jump:1.5, speed:0,
+  draw() { ctx.drawImage(birdImg, this.x - this.w/2, this.y - this.h/2); },
+  update() {
+    if (state.current === state.game) {
       this.speed += this.gravity;
       this.y += this.speed;
     } else {
-      this.y = 150; // reset position
-      this.speed = 0;
+      this.speed = 0; this.y = 150;
     }
-
-    if(this.y + this.radius >= canvas.height){
-      this.y = canvas.height - this.radius;
-      if(state.current === state.game){
-        state.current = state.over;
-      }
-    }
+    if (this.y + this.h/2 >= canvas.height) state.current = state.over;
   },
-  flap(){
-    this.speed = -this.jump;
-  }
+  flap() { this.speed = -this.jump; }
 };
 
 // Pipes
 const pipes = {
-  position: [],
-  top: { y: 0 },
-  width: 50,
-  height: 300,
-  gap: 120,
-  maxYPos: -150,
-  dx: 0.5, // ⚠️ VERY SLOW PIPE MOVEMENT
-  draw(){
-    for(let i = 0; i < this.position.length; i++){
-      let p = this.position[i];
-      ctx.fillStyle = "#228B22";
-      // top pipe
-      ctx.fillRect(p.x, p.y, this.width, this.height);
-      // bottom pipe
-      ctx.fillRect(p.x, p.y + this.height + this.gap, this.width, this.height);
-    }
+  arr: [], width:52, gap:180, dx:0.5,
+  draw() {
+    this.arr.forEach(p => {
+      ctx.drawImage(pipeNorth, p.x, p.y);
+      ctx.drawImage(pipeSouth, p.x, p.y + this.gap + pipeNorth.height);
+    });
   },
-  update(){
-    if(state.current !== state.game) return;
-
-    if(frames % 180 === 0){
-      this.position.push({
-        x: canvas.width,
-        y: this.maxYPos * Math.random()
-      });
+  update() {
+    if (state.current !== state.game) return;
+    if (frames % 200 === 0) {
+      this.arr.push({ x: canvas.width, y: -(pipeNorth.height + (Math.random() * 100)) });
     }
-
-    for(let i = 0; i < this.position.length; i++){
-      let p = this.position[i];
+    this.arr = this.arr.filter(p => p.x > -this.width);
+    this.arr.forEach(p => {
       p.x -= this.dx;
-
       // collision
       if (
-        bird.x + bird.radius > p.x && 
-        bird.x - bird.radius < p.x + this.width &&
-        (
-          bird.y - bird.radius < p.y + this.height || 
-          bird.y + bird.radius > p.y + this.height + this.gap
-        )
-      ) {
-        state.current = state.over;
-      }
-
-      // remove offscreen pipes
-      if (p.x + this.width <= 0) {
-        this.position.shift();
-      }
-    }
-  },
-  reset(){
-    this.position = [];
+        bird.x + bird.w/2 > p.x && bird.x - bird.w/2 < p.x + this.width &&
+        (bird.y - bird.h/2 < p.y + pipeNorth.height ||
+         bird.y + bird.h/2 > p.y + pipeNorth.height + this.gap)
+      ) state.current = state.over;
+    });
   }
 };
 
-// Background and Foreground (optional)
-function drawBackground() {
-  ctx.fillStyle = "#70c5ce";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
 // Main loop
-function draw(){
-  drawBackground();
-  pipes.draw();
-  bird.draw();
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  pipes.update(); pipes.draw();
+  bird.update(); bird.draw();
 
   if (state.current === state.getReady) {
     ctx.fillStyle = "#FFF";
     ctx.font = "24px Arial";
-    ctx.fillText("Press SPACE to Start", 100, 250);
+    ctx.fillText("Press SPACE to Start", 80, 300);
   }
-
   if (state.current === state.over) {
     ctx.fillStyle = "#FFF";
     ctx.font = "24px Arial";
-    ctx.fillText("Game Over! Press SPACE", 80, 300);
+    ctx.fillText("Game Over! Press SPACE", 70, 300);
   }
-}
 
-function update(){
-  bird.update();
-  pipes.update();
-}
-
-function loop(){
-  update();
-  draw();
   frames++;
   requestAnimationFrame(loop);
 }
-
 loop();
 </script>
 </body>
