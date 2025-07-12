@@ -2,85 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Flappy Fat Burn</title>
+  <title>Flappy Fat Burn - Real Mode</title>
   <style>
     canvas {
-      background: lightblue;
+      background: skyblue;
       display: block;
       margin: 0 auto;
+      border: 5px solid black;
     }
-    #winMessage {
+    #gameOver {
       text-align: center;
       font-size: 2em;
-      color: green;
+      color: red;
       display: none;
     }
   </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="480" height="640"></canvas>
-<div id="winMessage">U losed some weight!</div>
+<canvas id="gameCanvas" width="360" height="480"></canvas>
+<div id="gameOver">💥 U crashed! Try again!</div>
 
 <script>
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-  let birdY = canvas.height / 2;
-  let gravity = 2;
-  let velocity = 0;
-  let obstacles = [];
-  let score = 0;
-  let birdStage = 0;
+let birdY = 200;
+let velocity = 0;
+let gravity = 0.6;       // Slower gravity
+let jumpStrength = -10;  // Higher jump
+let pipes = [];
+let frame = 0;
+let gameOver = false;
 
-  function drawBird() {
-    ctx.fillStyle = 'red'; // Placeholder bird
-    ctx.beginPath();
-    ctx.arc(50, birdY, 20 + birdStage * 5, 0, Math.PI * 2);
-    ctx.fill();
+// Bird setup
+function drawBird() {
+  ctx.fillStyle = "crimson";
+  ctx.beginPath();
+  ctx.arc(60, birdY, 15, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Pipe setup
+function drawPipe(pipe) {
+  ctx.fillStyle = "green";
+  ctx.fillRect(pipe.x, 0, pipe.width, pipe.gapY - pipe.gapHeight / 2);
+  ctx.fillRect(pipe.x, pipe.gapY + pipe.gapHeight / 2, pipe.width, canvas.height);
+}
+
+// Collision detection
+function checkCollision(pipe) {
+  const birdTop = birdY - 15;
+  const birdBottom = birdY + 15;
+
+  if (
+    pipe.x < 75 && pipe.x + pipe.width > 45 &&
+    (birdTop < pipe.gapY - pipe.gapHeight / 2 || birdBottom > pipe.gapY + pipe.gapHeight / 2)
+  ) {
+    return true;
+  }
+  if (birdY > canvas.height || birdY < 0) {
+    return true;
+  }
+  return false;
+}
+
+// Game loop
+function update() {
+  if (gameOver) return;
+
+  frame++;
+  velocity += gravity;
+  birdY += velocity;
+
+  if (frame % 100 === 0) {
+    const gapY = Math.floor(Math.random() * 300) + 100;
+    pipes.push({
+      x: canvas.width,
+      width: 40,
+      gapY: gapY,
+      gapHeight: 120
+    });
   }
 
-  function drawObstacle(x) {
-    ctx.fillStyle = 'green';
-    ctx.fillRect(x, 0, 30, 200);
-    ctx.fillRect(x, 300, 30, canvas.height - 300);
-  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBird();
 
-  function gameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBird();
-
-    birdY += velocity;
-    velocity += gravity;
-
-    for (let i = 0; i < obstacles.length; i++) {
-      obstacles[i].x -= 2;
-      drawObstacle(obstacles[i].x);
-
-      if (obstacles[i].x === 48) {
-        score++;
-        if (score >= 10) {
-          document.getElementById('winMessage').style.display = 'block';
-          birdStage = Math.min(birdStage + 1, 4);
-          score = 0;
-        }
-      }
+  for (let i = 0; i < pipes.length; i++) {
+    pipes[i].x -= 2;
+    drawPipe(pipes[i]);
+    if (checkCollision(pipes[i])) {
+      document.getElementById("gameOver").style.display = "block";
+      gameOver = true;
     }
-
-    requestAnimationFrame(gameLoop);
   }
 
-  function flap() {
-    velocity = -15;
+  requestAnimationFrame(update);
+}
+
+function flap() {
+  if (!gameOver) {
+    velocity = jumpStrength;
   }
+}
 
-  document.addEventListener('keydown', flap);
-  document.addEventListener('click', flap);
+document.addEventListener("keydown", flap);
+document.addEventListener("click", flap);
 
-  for (let i = 0; i < 10; i++) {
-    obstacles.push({ x: 300 + i * 200 });
-  }
-
-  gameLoop();
+update();
 </script>
 </body>
 </html>
