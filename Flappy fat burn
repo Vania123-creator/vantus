@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Fat Burn</title>
+  <style>
+    canvas {
+      background: lightblue;
+      display: block;
+      margin: 0 auto;
+    }
+    #winMessage {
+      text-align: center;
+      font-size: 2em;
+      color: green;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="480" height="640"></canvas>
+<div id="winMessage">U losed some weight!</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  let birdY = canvas.height / 2;
+  let gravity = 2;
+  let velocity = 0;
+  let obstacles = [];
+  let score = 0;
+  let birdStage = 0;
+
+  function drawBird() {
+    ctx.fillStyle = 'red'; // Placeholder bird
+    ctx.beginPath();
+    ctx.arc(50, birdY, 20 + birdStage * 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawObstacle(x) {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(x, 0, 30, 200);
+    ctx.fillRect(x, 300, 30, canvas.height - 300);
+  }
+
+  function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBird();
+
+    birdY += velocity;
+    velocity += gravity;
+
+    for (let i = 0; i < obstacles.length; i++) {
+      obstacles[i].x -= 2;
+      drawObstacle(obstacles[i].x);
+
+      if (obstacles[i].x === 48) {
+        score++;
+        if (score >= 10) {
+          document.getElementById('winMessage').style.display = 'block';
+          birdStage = Math.min(birdStage + 1, 4);
+          score = 0;
+        }
+      }
+    }
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  function flap() {
+    velocity = -15;
+  }
+
+  document.addEventListener('keydown', flap);
+  document.addEventListener('click', flap);
+
+  for (let i = 0; i < 10; i++) {
+    obstacles.push({ x: 300 + i * 200 });
+  }
+
+  gameLoop();
+</script>
+</body>
+</html>
