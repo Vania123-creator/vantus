@@ -2,111 +2,184 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Flappy Fat Burn - Chill Mode</title>
+  <title>Slow Flappy Bird</title>
   <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #70c5ce;
+    }
     canvas {
-      background: #87ceeb;
       display: block;
       margin: 0 auto;
-      border: 4px solid black;
-    }
-    #gameOver {
-      text-align: center;
-      font-size: 2em;
-      color: crimson;
-      display: none;
+      background: #70c5ce;
     }
   </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="360" height="480"></canvas>
-<div id="gameOver">💥 U crashed! Try again!</div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let birdY = canvas.height / 2;
-let velocity = 0;
-let gravity = 0.5;          // Starting gravity (smaller than before)
-let gravityDecay = 0.0005;  // Gradually gets even smaller
-let jumpStrength = -8;      // Slightly softer jump
-let pipes = [];
-let frame = 0;
-let gameOver = false;
+let frames = 0;
+const DEGREE = Math.PI / 180;
 
-function drawBird() {
-  ctx.fillStyle = "crimson";
-  ctx.beginPath();
-  ctx.arc(60, birdY, 15, 0, Math.PI * 2);
-  ctx.fill();
-}
+// Game state
+const state = {
+  current: 0,
+  getReady: 0,
+  game: 1,
+  over: 2
+};
 
-function drawPipe(pipe) {
-  ctx.fillStyle = "green";
-  ctx.fillRect(pipe.x, 0, pipe.width, pipe.gapY - pipe.gapHeight / 2);
-  ctx.fillRect(pipe.x, pipe.gapY + pipe.gapHeight / 2, pipe.width, canvas.height);
-}
-
-function checkCollision(pipe) {
-  const birdTop = birdY - 15;
-  const birdBottom = birdY + 15;
-
-  if (
-    pipe.x < 75 && pipe.x + pipe.width > 45 &&
-    (birdTop < pipe.gapY - pipe.gapHeight / 2 || birdBottom > pipe.gapY + pipe.gapHeight / 2)
-  ) {
-    return true;
-  }
-  if (birdY > canvas.height || birdY < 0) {
-    return true;
-  }
-  return false;
-}
-
-function update() {
-  if (gameOver) return;
-
-  frame++;
-  gravity = Math.max(gravity - gravityDecay, 0.1); // gravity eases toward 0.1
-  velocity += gravity;
-  birdY += velocity;
-
-  if (frame % 100 === 0) {
-    const gapY = Math.floor(Math.random() * 200) + 100;
-    pipes.push({
-      x: canvas.width,
-      width: 40,
-      gapY: gapY,
-      gapHeight: 120
-    });
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBird();
-
-  for (let i = 0; i < pipes.length; i++) {
-    pipes[i].x -= 1.5; // slower movement
-    drawPipe(pipes[i]);
-    if (checkCollision(pipes[i])) {
-      document.getElementById("gameOver").style.display = "block";
-      gameOver = true;
+// Control
+document.addEventListener("keydown", function(evt){
+  if(evt.code === "Space"){
+    switch(state.current){
+      case state.getReady:
+        state.current = state.game;
+        break;
+      case state.game:
+        bird.flap();
+        break;
+      case state.over:
+        location.reload();
+        break;
     }
   }
+});
 
-  requestAnimationFrame(update);
+// Bird
+const bird = {
+  x: 50,
+  y: 150,
+  radius: 12,
+  gravity: 0.05,  // ⚠️ VERY LOW GRAVITY
+  jump: 1.5,      // ⚠️ VERY SLOW FLAP UP
+  speed: 0,
+  draw(){
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+    ctx.fill();
+  },
+  update(){
+    if(state.current === state.game){
+      this.speed += this.gravity;
+      this.y += this.speed;
+    } else {
+      this.y = 150; // reset position
+      this.speed = 0;
+    }
+
+    if(this.y + this.radius >= canvas.height){
+      this.y = canvas.height - this.radius;
+      if(state.current === state.game){
+        state.current = state.over;
+      }
+    }
+  },
+  flap(){
+    this.speed = -this.jump;
+  }
+};
+
+// Pipes
+const pipes = {
+  position: [],
+  top: { y: 0 },
+  width: 50,
+  height: 300,
+  gap: 120,
+  maxYPos: -150,
+  dx: 0.5, // ⚠️ VERY SLOW PIPE MOVEMENT
+  draw(){
+    for(let i = 0; i < this.position.length; i++){
+      let p = this.position[i];
+      ctx.fillStyle = "#228B22";
+      // top pipe
+      ctx.fillRect(p.x, p.y, this.width, this.height);
+      // bottom pipe
+      ctx.fillRect(p.x, p.y + this.height + this.gap, this.width, this.height);
+    }
+  },
+  update(){
+    if(state.current !== state.game) return;
+
+    if(frames % 180 === 0){
+      this.position.push({
+        x: canvas.width,
+        y: this.maxYPos * Math.random()
+      });
+    }
+
+    for(let i = 0; i < this.position.length; i++){
+      let p = this.position[i];
+      p.x -= this.dx;
+
+      // collision
+      if (
+        bird.x + bird.radius > p.x && 
+        bird.x - bird.radius < p.x + this.width &&
+        (
+          bird.y - bird.radius < p.y + this.height || 
+          bird.y + bird.radius > p.y + this.height + this.gap
+        )
+      ) {
+        state.current = state.over;
+      }
+
+      // remove offscreen pipes
+      if (p.x + this.width <= 0) {
+        this.position.shift();
+      }
+    }
+  },
+  reset(){
+    this.position = [];
+  }
+};
+
+// Background and Foreground (optional)
+function drawBackground() {
+  ctx.fillStyle = "#70c5ce";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function flap() {
-  if (!gameOver) {
-    velocity = jumpStrength;
+// Main loop
+function draw(){
+  drawBackground();
+  pipes.draw();
+  bird.draw();
+
+  if (state.current === state.getReady) {
+    ctx.fillStyle = "#FFF";
+    ctx.font = "24px Arial";
+    ctx.fillText("Press SPACE to Start", 100, 250);
+  }
+
+  if (state.current === state.over) {
+    ctx.fillStyle = "#FFF";
+    ctx.font = "24px Arial";
+    ctx.fillText("Game Over! Press SPACE", 80, 300);
   }
 }
 
-document.addEventListener("keydown", flap);
-document.addEventListener("click", flap);
+function update(){
+  bird.update();
+  pipes.update();
+}
 
-update();
+function loop(){
+  update();
+  draw();
+  frames++;
+  requestAnimationFrame(loop);
+}
+
+loop();
 </script>
 </body>
 </html>
